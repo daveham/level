@@ -1,0 +1,19 @@
+{
+  "name": "level",
+  "version": "0.1.0",
+  "private": true,
+  "devDependencies": {},
+  "dependencies": {
+    "leveldown": "^4.0.1",
+    "levelup": "^4.0.0",
+    "subleveldown": "^3.0.1"
+  },
+  "scripts": {
+    "start": "DEBUG='*' node app.js"
+  },
+  "engines": {
+    "node": "^10.1.0",
+    "npm": "^6.4.1"
+  },
+  "engineStrict": true
+}
