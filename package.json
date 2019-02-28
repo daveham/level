@@ -4,6 +4,7 @@
   "private": true,
   "devDependencies": {},
   "dependencies": {
+    "level-auto-index": "^1.1.0",
     "leveldown": "^4.0.1",
     "levelup": "^4.0.0",
     "subleveldown": "^3.0.1"
