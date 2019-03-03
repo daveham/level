@@ -1,0 +1,26 @@
+{
+  "parser": "babel-eslint",
+  "parserOptions": {
+    "ecmaVersion": 6,
+    "sourceType": "module"
+  },
+  "extends": [
+    "eslint:recommended"
+  ],
+  "plugins": [
+    "babel",
+    "promise"
+  ],
+  "env": {
+    "node": true
+  },
+  "globals": {
+    "Promise": false
+  },
+  "rules": {
+    "semi": [2, "always"],
+    "padded-blocks": 0,
+    "space-before-function-paren": 0,
+    "no-console": 0
+  }
+}

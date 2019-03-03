@@ -1,0 +1,22 @@
+{
+  "presets": [
+    [
+      "@babel/env",
+      {
+        "useBuiltIns": "entry",
+        "targets": {
+          "node": true
+        }
+      }
+    ]
+  ],
+  "plugins": [
+    "@babel/transform-runtime",
+    [
+      "module-resolver",
+      {
+        "root": ["."]
+      }
+    ]
+  ]
+}
