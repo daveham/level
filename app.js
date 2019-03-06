@@ -1,92 +1,38 @@
-import charwise from 'charwise';
-
-import levelup from 'levelup';
-import leveldown from 'leveldown';
-
-import uuid from 'uuid/v1';
-import sub from 'subleveldown';
-
-import rimraf from 'rimraf';
+import { cleanDatabase } from './lib/utils';
+import {
+  createMockSimulations,
+  createMockExecutions,
+  createMockRenderings,
+  defineDatabase,
+} from './lib/data';
 
 import _debug from 'debug';
 const debug = _debug('lvl:db');
 
-const dbPath = './mydb';
+const dbPath = process.env.DBPATH || './mydb';
 
-function instrumentDatabase(db, label) {
-  db.on('open', () => debug(`[log.${label}] open`));
-  db.on('closed', () => debug(`[log.${label}] closed`));
-  db.on('put', key => debug(`[log.${label}] put`, { key }));
-  db.on('del', key => debug(`[log.${label}] del`, { key }));
-}
+const s1 = createMockSimulations()[0];
+const e1 = createMockExecutions(s1)[0];
+const r1 = createMockRenderings(s1, e1)[0];
+debug('sample s1', s1);
+debug('sample e1', e1);
+debug('sample r1', r1);
 
-function clean(path, skip) {
-  if (skip) return Promise.resolve();
-  return new Promise((resolve, reject) => {
-    rimraf(path, err => {
-      if (err) reject(err);
-      else resolve();
-    });
-  });
-}
-
-function readAll(db) {
-  return new Promise((resolve) => {
-    db.createReadStream()
-      .on('data', d => debug('read stream: ', { d }))
-      .on('close', () => { debug('stream closed'); resolve(); });
-  });
-}
-
-let db, sliceOne, sliceOneNestOne, sliceTwo, sliceTwoNestTwo;
-const sliceOneKey = uuid();
-const sliceTwoKey = uuid();
-const sliceThreeKey = uuid();
-
-clean(dbPath, true)
-  .then(() => {
-    db = levelup(leveldown(dbPath));
-    instrumentDatabase(db, 'top');
-
-    sliceOne = sub(db, 'sliceOne');
-    instrumentDatabase(sliceOne, 'sliceOne');
-    sliceOneNestOne = sub(sliceOne, 'nestOne', { keyEncoding: charwise, valueEncoding: 'json' });
-    instrumentDatabase(sliceOneNestOne, 'sliceOneNestOne');
-
-    sliceTwo = sub(db, 'sliceTwo');
-    instrumentDatabase(sliceTwo, 'sliceTwo');
-    sliceTwoNestTwo = sub(sliceTwo, 'nestTwo', { keyEncoding: charwise, valueEncoding: 'json' });
-    instrumentDatabase(sliceTwoNestTwo, 'sliceTwoNestTwo');
-
-    return db.put('root', 'rootValue');
+let db;
+cleanDatabase(dbPath, false)
+  .then(() => defineDatabase(dbPath))
+  .then(data => {
+    db = data;
+    return db.simulations.put(s1.id, s1);
   })
-  .then(() =>
-    sliceOneNestOne.put(sliceOneKey, {
-      label: 'one',
-      data: { raw: 1, text: 'one' },
-    }),
-  )
-  .then(() =>
-    sliceTwoNestTwo.put(sliceTwoKey, {
-      label: 'two',
-      data: { raw: 2, text: 'two' },
-    }),
-  )
-  .then(() =>
-    sliceTwoNestTwo.put(sliceThreeKey, {
-      label: 'three',
-      data: { raw: 3, text: 'three' },
-    }),
-  )
-  .then(() => sliceOneNestOne.get(sliceOneKey))
-  .then(value => debug('read from sliceOne: ' + JSON.stringify(value)))
-  .then(() => sliceTwoNestTwo.get(sliceTwoKey))
-  .then(value => debug('read from sliceTwo: ' + JSON.stringify(value)))
-  .then(() => readAll(sliceOneNestOne))
-  .then(() => readAll(sliceTwoNestTwo))
+  .then(() => db.executions.put(e1.id, e1))
+  .then(() => db.renderings.put(r1.id, r1))
+  .then(() => db.simulations.get(s1.id))
+  .then(value => debug('read from simulations: ' + JSON.stringify(value)))
+  .then(() => db.executions.get(e1.id))
+  .then(value => debug('read from executions: ' + JSON.stringify(value)))
+  .then(() => db.renderings.get(r1.id))
+  .then(value => debug('read from renderings: ' + JSON.stringify(value)))
   .then(() => db.close())
-  .then(() => sliceOne.close())
-  .then(() => sliceOneNestOne.close())
-  .then(() => sliceTwo.close())
-  .then(() => sliceTwoNestTwo.close())
+  .then(() => debug('finished'))
   .catch(err => debug('caught error', { err }));
