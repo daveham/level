@@ -1,8 +1,6 @@
 import { cleanDatabase } from './lib/utils';
 import {
-  createMockSimulations,
-  createMockExecutions,
-  createMockRenderings,
+  generateMockSimulation,
   defineDatabase,
 } from './lib/data';
 
@@ -11,27 +9,43 @@ const debug = _debug('lvl:db');
 
 const dbPath = process.env.DBPATH || './mydb';
 
-const s1 = createMockSimulations()[0];
-const e1 = createMockExecutions(s1)[0];
-const r1 = createMockRenderings(s1, e1)[0];
-debug('sample s1', s1);
-debug('sample e1', e1);
-debug('sample r1', r1);
+const sims = [];
+sims.push(generateMockSimulation('1001', [4, 3, 7]));
+sims.push(generateMockSimulation('1001', [3, 2, 9, 6, 4]));
 
 let db;
 cleanDatabase(dbPath, false)
   .then(() => defineDatabase(dbPath))
   .then(data => {
     db = data;
-    return db.simulations.put(s1.id, s1);
+    return db.simulations.batch(sims.map(s => {
+      const { executions: ignore, id, ...other } = s;
+      return { type: 'put', key: id, value: { id, ...other } };
+    }));
   })
-  .then(() => db.executions.put(e1.id, e1))
-  .then(() => db.renderings.put(r1.id, r1))
-  .then(() => db.simulations.get(s1.id))
+  .then(() => db.simulationsSourceIdx.batch(sims.map(s => (
+    { type: 'put', key: [ s.sourceId, s.id ], value: s.id }
+  ))))
+  .then(() => {
+    const executions = sims.reduce((acc, s) => [...acc, ...s.executions], []);
+    return db.executions.batch(executions.map(e => {
+      const { renderings: ignore, id, ...other } = e;
+      return { type: 'put', key: id, value: { id, ...other } };
+    }));
+  })
+  .then(() => {
+    const renderings = sims.reduce((acc, s) => [...acc, ...s.executions], [])
+      .reduce((acc, e) => [...acc, ...e.renderings], []);
+    return db.renderings.batch(renderings.map(r => {
+      const { id, ...other } = r;
+      return { type: 'put', key: id, value: { id, ...other } };
+    }));
+  })
+  .then(() => db.simulations.get(sims[0].id))
   .then(value => debug('read from simulations: ' + JSON.stringify(value)))
-  .then(() => db.executions.get(e1.id))
+  .then(() => db.executions.get(sims[0].executions[0].id))
   .then(value => debug('read from executions: ' + JSON.stringify(value)))
-  .then(() => db.renderings.get(r1.id))
+  .then(() => db.renderings.get(sims[0].executions[0].renderings[0].id))
   .then(value => debug('read from renderings: ' + JSON.stringify(value)))
   .then(() => db.close())
   .then(() => debug('finished'))
