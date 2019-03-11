@@ -18,7 +18,9 @@
     "babel-plugin-module-resolver": "^3.2.0",
     "charwise": "^3.0.1",
     "debug": "^2.6.8",
+    "defined": "^1.0.0",
     "dotenv": "^4.0.0",
+    "encoding-down": "^6.0.1",
     "eslint": "5.6.0",
     "eslint-config-standard": "^11.0.0",
     "eslint-plugin-babel": "^5.3.0",
@@ -26,18 +28,38 @@
     "eslint-plugin-node": "^8.0.1",
     "eslint-plugin-promise": "^4.0.1",
     "eslint-plugin-standard": "^4.0.0",
+    "inherits": "^2.0.3",
     "level-auto-index": "^1.1.0",
     "leveldown": "^4.0.1",
     "levelup": "^4.0.0",
     "rimraf": "^2.6.3",
     "subleveldown": "^3.0.1",
-    "uuid": "^3.3.2"
+    "uuid": "^3.3.2",
+    "xtend": "^4.0.1"
   },
   "devDependencies": {
+    "@types/jest": "^24.0.11",
+    "babel-jest": "^24.3.1",
+    "eslint-plugin-jest": "^22.3.0",
+    "jest": "^24.3.1",
+    "memdown": "^3.0.0",
     "prettier": "^1.8.2"
   },
   "scripts": {
-    "start": "node start.js"
+    "start": "node start.js",
+    "test": "DEBUG='lvl*' jest"
+  },
+  "jest": {
+    "globals": {
+    },
+    "collectCoverageFrom": [
+      "./**/*.{js,jsx,ts,tsx}",
+      "!./**/*.d.ts"
+    ],
+    "testMatch": [
+      "<rootDir>/**/__tests__/**/*.{js,jsx,ts,tsx}",
+      "<rootDir>/**/?(*.)(spec|test).{js,jsx,ts,tsx}"
+    ]
   },
   "engines": {
     "node": "^10.1.0",

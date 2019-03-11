@@ -7,15 +7,18 @@
   "extends": "standard",
   "plugins": [
     "babel",
-    "promise"
+    "promise",
+    "jest"
   ],
   "env": {
-    "node": true
+    "node": true,
+    "jest/globals": true
   },
   "globals": {
     "Promise": false
   },
   "rules": {
+    "comma-dangle": ["error", "only-multiline"],
     "semi": [2, "always"],
     "padded-blocks": 0,
     "space-before-function-paren": 0,
