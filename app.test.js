@@ -4,6 +4,7 @@ import memdown from 'memdown';
 import charwise from 'charwise';
 import uuid from 'uuid';
 import sub from './down';
+// import sub from 'subleveldown';
 import { readAll } from './lib/utils';
 import _debug from 'debug';
 const debug = _debug('lvl:app:test');
@@ -29,7 +30,7 @@ describe('single db', () => {
   test('range with default encoding', () => {
     const db = levelup(encode(memdown()));
     const lowerLimit = 'key2';
-    const upperLimit = 'key3~';
+    const upperLimit = 'key3\xff';
     const streamOptions = {
       gte: lowerLimit,
       lt: upperLimit,
@@ -139,8 +140,8 @@ describe('one down db', () => {
 
   describe('put and get with json', () => {
     test('value encoding', () => {
-      const options = { valueEncoding: 'json' };
       const db = levelup(encode(memdown()));
+      const options = { valueEncoding: 'json' };
       const dbDown = sub(db, 'one', options);
       const key = 'key';
       const data = { value: 'value' };
@@ -149,15 +150,15 @@ describe('one down db', () => {
       return dbDown
         .put(key, data)
         .then(() => dbDown.put(key2, data2))
-        .then(() => readAll(db))
-        .then(() => readAll(dbDown, options))
+        // .then(() => readAll(db))
+        // .then(() => readAll(dbDown, options))
         .then(() => dbDown.get(key))
         .then(data => expect(data).toEqual(data));
     });
 
     test('key encoding', () => {
-      const options = { keyEncoding: 'json' };
       const db = levelup(encode(memdown()));
+      const options = { keyEncoding: 'json' };
       const dbDown = sub(db, 'one', options);
       const key = { key: 'key' };
       const data = 'value';
@@ -166,8 +167,8 @@ describe('one down db', () => {
       return dbDown
         .put(key, data)
         .then(() => dbDown.put(key2, data2))
-        .then(() => readAll(db))
-        .then(() => readAll(dbDown, options))
+        // .then(() => readAll(db))
+        // .then(() => readAll(dbDown, options))
         .then(() => dbDown.get(key))
         .then(data => expect(data).toEqual(data));
     });
@@ -175,8 +176,8 @@ describe('one down db', () => {
 
   describe('put and get with charwise', () => {
     test('key encoding', () => {
-      const options = { keyEncoding: charwise, valueEncoding: 'json' };
       const db = levelup(encode(memdown()));
+      const options = { keyEncoding: charwise, valueEncoding: 'json' };
       const dbDown = sub(db, 'one', options);
       const key = 'key';
       const data = { value: 'value' };
@@ -188,25 +189,18 @@ describe('one down db', () => {
         .put(key, data)
         .then(() => dbDown.put(key2, data2))
         .then(() => dbDown.put(key3, data3))
-        .then(() => readAll(db))
-        .then(() => readAll(dbDown, options))
+        // .then(() => readAll(db))
+        // .then(() => readAll(dbDown, options))
         .then(() => dbDown.get(key))
-        .then(data => expect(data).toEqual(data));
+        .then(d => expect(d).toEqual(data));
     });
   });
 
   describe('range with charwise', () => {
     test('with string keys and values', () => {
-      const options = { keyEncoding: charwise, valueEncoding: 'json' };
       const db = levelup(encode(memdown()));
+      const options = { keyEncoding: charwise, valueEncoding: 'json' };
       const dbDown = sub(db, 'one', options);
-      const lowerLimit = 'key2';
-      const upperLimit = 'key3~';
-      const streamOptions = {
-        ...options,
-        gte: lowerLimit,
-        lt: upperLimit,
-      };
       return dbDown
         .put('key1', { data: 'value1' })
         .then(() => dbDown.put('key2', { data: 'value2' }))
@@ -218,13 +212,23 @@ describe('one down db', () => {
           () =>
             new Promise(resolve => {
               let index = 0;
+              let count = 0;
+              const lowerLimit = 'key2';
+              const upperLimit = 'key3~';
+              const streamOptions = {
+                ...options,
+                gte: lowerLimit,
+                lt: upperLimit,
+              };
               dbDown.createReadStream(streamOptions)
                 .on('data', d => {
                   debug('stream item', { index: index++, ...d });
+                  count++;
                   expect(d.value.data === 'value2' || d.value.data === 'value3').toBe(true);
                 })
                 .on('close', () => {
                   debug('stream closed');
+                  expect(count).toBe(2);
                   resolve();
                 });
             }),
@@ -232,15 +236,9 @@ describe('one down db', () => {
     });
 
     test('with array keys and json values', () => {
-      const options = { keyEncoding: charwise, valueEncoding: 'json' };
       const db = levelup(encode(memdown()));
+      const options = { keyEncoding: charwise, valueEncoding: 'json' };
       const dbDown = sub(db, 'one', options);
-      const lowerLimit = ['key2'];
-      const upperLimit = ['key3', 0xff];
-      const streamOptions = {
-        gte: lowerLimit,
-        lt: upperLimit,
-      };
       return dbDown
         .put(['key1'], { data: 'value1' })
         .then(() => dbDown.put(['key2'], { data: 'value2' }))
@@ -253,6 +251,13 @@ describe('one down db', () => {
             new Promise(resolve => {
               let index = 0;
               let count = 0;
+              const lowerLimit = ['key2'];
+              const upperLimit = ['key3', '\xff'];
+              const streamOptions = {
+                ...options,
+                gte: lowerLimit,
+                lt: upperLimit,
+              };
               dbDown.createReadStream(streamOptions)
                 .on('data', d => {
                   debug('stream item', { index: index++, ...d });
@@ -269,18 +274,12 @@ describe('one down db', () => {
     });
 
     test('with arrays of uuid keys and json values', () => {
-      const options = { keyEncoding: charwise, valueEncoding: 'json' };
       const db = levelup(encode(memdown()));
+      const options = { keyEncoding: charwise, valueEncoding: 'json' };
       const dbDown = sub(db, 'one', options);
       const prefixKey = uuid();
       const targetKey = uuid();
       const keys = [uuid(), uuid(), uuid(), uuid()];
-      const lowerLimit = [prefixKey, targetKey];
-      const upperLimit = [prefixKey, targetKey, '\x99'];
-      const streamOptions = {
-        gte: lowerLimit,
-        lt: upperLimit,
-      };
       return dbDown
         .put([prefixKey, uuid(), keys[0]], { data: 'value1' })
         .then(() => dbDown.put([prefixKey, targetKey, keys[1]], { data: 'value2' }))
@@ -293,6 +292,13 @@ describe('one down db', () => {
             new Promise(resolve => {
               let index = 0;
               let count = 0;
+              const lowerLimit = [prefixKey, targetKey];
+              const upperLimit = [prefixKey, targetKey, '\xff'];
+              const streamOptions = {
+                ...options,
+                gte: lowerLimit,
+                lt: upperLimit,
+              };
               dbDown.createReadStream(streamOptions)
                 .on('data', d => {
                   debug('stream item', { index: index++, ...d });
