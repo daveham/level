@@ -1,6 +1,6 @@
-import charwise from 'charwise';
+// import charwise from 'charwise';
 import { cleanDatabase, readAll } from './lib/utils';
-import { generateMockSimulation, defineDatabase } from './lib/data';
+import { generateMockSimulation, defineDatabase, indexDbOptions } from './lib/data';
 
 import _debug from 'debug';
 const debug = _debug('lvl:app');
@@ -26,7 +26,7 @@ cleanDatabase(dbPath, false)
   })
   .then(() =>
     db.simulationsSourceIdx.batch(
-      sims.map(s => ({ type: 'put', key: [s.sourceId], value: s.id })),
+      sims.map(s => ({ type: 'put', key: [s.sourceId, s.id], value: s.id })),
     ),
   )
   .then(() => {
@@ -42,7 +42,7 @@ cleanDatabase(dbPath, false)
     const executions = sims.reduce((acc, s) => [...acc, ...s.executions], []);
     return db.executionsSimulationIdx.batch(
       executions.map(e => {
-        return { type: 'put', key: [e.simulationId], value: e.id };
+        return { type: 'put', key: [e.simulationId, e.id], value: e.id };
       }),
     );
   })
@@ -73,25 +73,20 @@ cleanDatabase(dbPath, false)
   .then(value => debug('read from executions: ' + JSON.stringify(value)))
   .then(() => db.renderings.get(sims[0].executions[0].renderings[0].id))
   .then(value => debug('read from renderings: ' + JSON.stringify(value)))
-  .then(() => readAll(db.simulationsSourceIdx, {}, debugOptions))
-  .then(() => readAll(db.executionsSimulationIdx, {}, debugOptions))
-  .then(() => readAll(db.renderingsExecutionSimulationIdx, {}, { read: true }))
+  .then(() => readAll(db.simulationsSourceIdx, indexDbOptions, debugOptions))
+  .then(() => readAll(db.executionsSimulationIdx, indexDbOptions, debugOptions))
+  .then(() => readAll(db.renderingsExecutionSimulationIdx, indexDbOptions, debugOptions))
   .then(() => {
     const s = sims[0];
     const e = s.executions[0];
-    const { prefix } = db.renderingsExecutionSimulationIdx.db.db;
-    const lowerLimit = `${prefix}${charwise.encode([e.id])}`;
-    const upperLimit = `${prefix}${charwise.encode([e.id, '~'])}`;
-    debug('read stream limits', {
-      lowerLimit: lowerLimit.slice(0, lowerLimit.length - 1),
-      upperLimit,
-    });
     // const r = e.renderings[0];
+    debug('filter resIdx to e.id', { idx: e.id });
     return readAll(
       db.renderingsExecutionSimulationIdx,
       {
-        gt: lowerLimit.slice(0, lowerLimit.length - 1),
-        // lt: upperLimit,
+        ...indexDbOptions,
+        gte: [e.id],
+        lt: [e.id, '\xff'],
       },
       { read: true },
     );
