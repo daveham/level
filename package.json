@@ -47,7 +47,8 @@
   },
   "scripts": {
     "start": "node start.js",
-    "test": "DEBUG='lvl*' jest"
+    "test": "DEBUG='lvl*' jest",
+    "test:app": "DEBUG='lvl*' jest app.test.js"
   },
   "jest": {
     "globals": {
