@@ -57,7 +57,7 @@ const addMockData = (db) => {
         .reduce((acc, s) => [...acc, ...s.executions], [])
         .reduce((acc, e) => [...acc, ...e.renderings], []);
       // add index for renderings
-      return db.renderingsExecutionSimulationIdx.batch(
+      return db.renderingsExecutionIdx.batch(
         renderings.map(r => ({ type: 'put', key: [r.executionId, r.id], value: r.id })));
     });
 };
@@ -77,7 +77,7 @@ const exploreDataTypes = (db) => {
     // read all execution index entries (to produce debug output)
     .then(() => readAll(db.executionsSimulationIdx, noOp, indexDbOptions, debugOptions))
     // read all rendering index entries (to produce debug output)
-    .then(() => readAll(db.renderingsExecutionSimulationIdx, noOp, indexDbOptions, debugOptions));
+    .then(() => readAll(db.renderingsExecutionIdx, noOp, indexDbOptions, debugOptions));
 };
 
 const exploreDataFilters = (db) => {
@@ -89,7 +89,7 @@ const exploreDataFilters = (db) => {
 
   debug('filter resIdx to first e.id', { idx: e0.id });
   return readAll(
-    db.renderingsExecutionSimulationIdx,
+    db.renderingsExecutionIdx,
     (d) => { collectZero.push(d.value); },
     {
       ...indexDbOptions,
@@ -101,7 +101,7 @@ const exploreDataFilters = (db) => {
     .then(() => {
       debug('filter resIdx to second e.id', { idx: e1.id });
       return readAll(
-        db.renderingsExecutionSimulationIdx,
+        db.renderingsExecutionIdx,
         (d) => {
           collectOne.push(d.value);
         },
