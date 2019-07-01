@@ -1,6 +1,11 @@
 // import charwise from 'charwise';
-import { cleanDatabase, readAll } from './lib/utils';
-import { generateMockSimulation, defineDatabase, indexDbOptions } from './lib/data';
+import _ from 'highland';
+import { cleanDatabase } from './lib/utils';
+import {
+  generateMockSimulation,
+  defineDatabase,
+  createManager,
+} from './lib/data';
 
 import _debug from 'debug';
 const debug = _debug('lvl:app');
@@ -18,7 +23,7 @@ const sims = [];
 sims.push(generateMockSimulation('1001', [4, 3, 7]));
 sims.push(generateMockSimulation('1001', [3, 2, 9, 6, 4]));
 
-const noOp = () => {};
+// const noOp = () => {};
 
 const addMockData = (db) => {
   // add simulations based on mock simulation data
@@ -62,71 +67,42 @@ const addMockData = (db) => {
     });
 };
 
-const exploreDataTypes = (db) => {
+const exploreDataTypes = (mgr) => {
   // read the first simulation
-  return db.simulations.get(sims[0].id)
+  return mgr.getSimulation(sims[0].id)
     .then(value => debug('read from simulations: ' + JSON.stringify(value)))
     // read the first execution of the simulation
-    .then(() => db.executions.get(sims[0].executions[0].id))
+    .then(() => mgr.getExecution(sims[0].executions[0].id))
     .then(value => debug('read from executions: ' + JSON.stringify(value)))
     // read the first rendering of the execution
-    .then(() => db.renderings.get(sims[0].executions[0].renderings[0].id))
-    .then(value => debug('read from renderings: ' + JSON.stringify(value)))
-    // read all simulation index entries (to produce debug output)
-    .then(() => readAll(db.simulationsSourceIdx, noOp, indexDbOptions, debugOptions))
-    // read all execution index entries (to produce debug output)
-    .then(() => readAll(db.executionsSimulationIdx, noOp, indexDbOptions, debugOptions))
-    // read all rendering index entries (to produce debug output)
-    .then(() => readAll(db.renderingsExecutionIdx, noOp, indexDbOptions, debugOptions));
+    .then(() => mgr.getRendering(sims[0].executions[0].renderings[0].id))
+    .then(value => debug('read from renderings: ' + JSON.stringify(value)));
 };
 
-const exploreDataFilters = (db) => {
+const exploreDataFilters = (mgr) => {
   const e0 = sims[0].executions[0];
   const e1 = sims[1].executions[0];
 
-  const collectZero = [];
-  const collectOne = [];
-
-  debug('filter resIdx to first e.id', { idx: e0.id });
-  return readAll(
-    db.renderingsExecutionIdx,
-    (d) => { collectZero.push(d.value); },
-    {
-      ...indexDbOptions,
-      gte: [e0.id],
-      lt: [e0.id, '\xff'],
-    },
-    debugOptions, // { read: true, db: true },
-  )
-    .then(() => {
-      debug('filter resIdx to second e.id', { idx: e1.id });
-      return readAll(
-        db.renderingsExecutionIdx,
-        (d) => {
-          collectOne.push(d.value);
-        },
-        {
-          ...indexDbOptions,
-          gte: [e1.id],
-          lt: [e1.id, '\xff'],
-        },
-        debugOptions, // { read: true, db: true },
-      );
-    })
-    .then(() => {
-      debug('filtered first results', collectZero);
-      debug('filtered second results', collectOne);
+  return new Promise((resolve) => {
+    debug('query renderings for first e.id', e0.id);
+    _(mgr.getRenderings(e0.id)).toArray((renderings0) => {
+      debug('renderings', renderings0);
+      debug('query renderings for second e.id', e1.id);
+      _(mgr.getRenderings(e1.id)).toArray((renderings1) => {
+        debug('renderings', renderings1);
+        resolve();
+      });
     });
+  });
 };
 
 cleanDatabase(dbPath)
   .then(() => defineDatabase(dbPath, debugOptions))
-  .then(db =>
-    addMockData(db)
-      .then(() => exploreDataTypes(db))
-      .then(() => exploreDataFilters(db))
-      .then(() => {
-        debug('finished');
-        return db.close();
-      }))
+  .then(db => addMockData(db)
+    .then(() => {
+      const mgr = createManager(db);
+      return exploreDataTypes(mgr)
+        .then(() => exploreDataFilters(mgr))
+        .then(() => db.close());
+    }))
   .catch(err => debug('caught error', { err }));
