@@ -1,5 +1,4 @@
 // import charwise from 'charwise';
-import _ from 'highland';
 import { cleanDatabase } from './lib/utils';
 import {
   generateMockSimulation,
@@ -83,17 +82,34 @@ const exploreDataFilters = (mgr) => {
   const e0 = sims[0].executions[0];
   const e1 = sims[1].executions[0];
 
-  return new Promise((resolve) => {
-    debug('query renderings for first e.id', e0.id);
-    _(mgr.getRenderings(e0.id)).toArray((renderings0) => {
-      debug('renderings', renderings0);
-      debug('query renderings for second e.id', e1.id);
-      _(mgr.getRenderings(e1.id)).toArray((renderings1) => {
-        debug('renderings', renderings1);
-        resolve();
+  debug('query renderings for execution e0', e0.id);
+  return mgr.getRenderings(e0.id)
+    .then((rows) => {
+      debug('via promise', rows);
+      return rows;
+    })
+    .then(() => {
+      debug('invoking with callback');
+      return new Promise((resolve) => {
+        mgr.getRenderings(e0.id, renderings => {
+          debug('via callback', renderings);
+          resolve();
+        });
+      });
+    })
+    .then(() => {
+      debug('query renderings for execution e1', e1.id);
+      return mgr.getRenderings(e1.id);
+    })
+    .then((rows) => {
+      debug('via promise', rows);
+      return new Promise((resolve) => {
+        mgr.getRenderings(e1.id, renderings => {
+          debug('via callback', renderings);
+          resolve();
+        });
       });
     });
-  });
 };
 
 cleanDatabase(dbPath)
