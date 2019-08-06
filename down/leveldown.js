@@ -37,6 +37,10 @@ SubIterator.prototype._next = function(cb) {
   });
 };
 
+SubIterator.prototype._seek = function (key) {
+  this.iterator.seek(concat(this.prefix, key));
+};
+
 SubIterator.prototype._end = function(cb) {
   // debug('SubIterator:_end');
   this.iterator.end(cb);
@@ -71,7 +75,7 @@ function SubDown(db, prefix, opts) {
     },
   };
 
-  abstract.AbstractLevelDOWN.call(this, 'no-location');
+  abstract.AbstractLevelDOWN.call(this);
 }
 
 inherits(SubDown, abstract.AbstractLevelDOWN);
@@ -102,6 +106,10 @@ SubDown.prototype._close = function(cb) {
   this.leveldown.close(cb);
 };
 
+SubDown.prototype._serializeKey = function (key) {
+  return Buffer.isBuffer(key) ? key : String(key);
+};
+
 SubDown.prototype._put = function(key, value, opts, cb) {
   this.leveldown.put(concat(this.prefix, key), value, opts, cb);
 };
@@ -115,16 +123,12 @@ SubDown.prototype._del = function(key, opts, cb) {
 };
 
 SubDown.prototype._batch = function(operations, opts, cb) {
-  if (arguments.length === 0) return new abstract.AbstractChainedBatch(this);
-  if (!Array.isArray(operations)) return this.leveldown.batch.apply(null, arguments);
-
-  const subops = new Array(operations.length);
+  // No need to make a copy of the array, abstract-leveldown does that
   for (let i = 0; i < operations.length; i++) {
-    const o = operations[i];
-    subops[i] = { type: o.type, key: concat(this.prefix, o.key), value: o.value };
+    operations[i].key = concat(this.prefix, operations[i].key);
   }
 
-  this.leveldown.batch(subops, opts, cb);
+  this.leveldown.batch(operations, opts, cb);
 };
 
 function extend(xopts, opts) {
